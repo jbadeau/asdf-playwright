@@ -22,7 +22,7 @@ install_playwright() {
   local download_path="$tmp_download_dir/playwright-${version}-${platform}.tar.gz"
 
   echo "Downloading Playwright from ${download_url} to ${download_path}"
-  curl --retry 10 --retry-delay 2 -Lo $download_path $download_url
+  curl --retry 10 --retry-delay 2 -Lo https://playwright.azureedge.net/builds/chromium/1007/chromium-mac-arm64.zip
 
   echo "Creating bin directory"
   mkdir -p "${bin_install_path}"
@@ -60,7 +60,7 @@ getArch() {
 get_download_url() {
   local version="$1"
   local platform="$2"
-
+  #     https://playwright.azureedge.net/builds/chromium/1007/chromium-mac-arm64.zip
   echo "https://playwright.azureedge.net/builds/playwright/${version}/${platform}/playwright.tar.gz"
 }
 

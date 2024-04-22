@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/env bash3
 
 releases_path="https://api.github.com/repos/microsoft/playwright/releases"
 cmd="curl --retry 10 --retry-delay 2 -s"
