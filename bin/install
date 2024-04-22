@@ -3,50 +3,47 @@
 set -e
 set -o pipefail
 
-install_playwright() {
-  local version=$1
-  local install_path=$2
+install_browsers() {
+  local playwright_version=$1
+  local data_sha256=$2
+  local install_path=$3
+  local browser_revs_url="https://raw.githubusercontent.com/microsoft/playwright/v${playwright_version}/packages/playwright-core/browsers.json"
   local operating_system="$(uname | tr '[:upper:]' '[:lower:]')"
   local arch="$(getArch)"
   local platform="$operating_system-$arch"
-  local bin_install_path="$install_path/bin"
-  local binary_path="$bin_install_path/playwright"
-  local download_url=$(get_download_url $version $platform)
 
-  if [ "$TMPDIR" = "" ]; then
-    local tmp_download_dir=$(mktemp -d -t playwright_XXXXXX)
-  else
-    local tmp_download_dir=$TMPDIR
-  fi
+  local browser_revs_file=$(mktemp)
+  echo "Downloading browsers.json from ${browser_revs_url} to ${browser_revs_file}"
+  curl --retry 10 --retry-delay 2 -Lo $browser_revs_file $browser_revs_url
 
-  local download_path="$tmp_download_dir/playwright-${version}-${platform}.tar.gz"
+  local browser_revs=$(jq -r '.browsers | to_entries | map("\(.key)=\(.value)") | join(" ")' $browser_revs_file)
 
-  echo "Downloading Playwright from ${download_url} to ${download_path}"
-  curl --retry 10 --retry-delay 2 -Lo "https://playwright.azureedge.net/builds/chromium/1007/chromium-mac-arm64.zip"
+  for browser_rev in $browser_revs; do
+    local browser=$(echo $browser_rev | cut -d '=' -f 1)
+    local revision=$(echo $browser_rev | cut -d '=' -f 2)
 
-  echo "Creating bin directory"
-  mkdir -p "${bin_install_path}"
+    local download_url="https://example.com/path/to/$browser/$revision"
+    local download_path="$install_path/$browser-$revision.tar.gz"
 
-  echo "Cleaning previous binaries"
-  rm -f $binary_path 2>/dev/null || true
+    echo "Downloading $browser revision $revision from $download_url to $download_path"
+    curl --retry 10 --retry-delay 2 -Lo $download_path $download_url
 
-  echo "Copying binary"
-  tar -zxf ${download_path} --directory $tmp_download_dir
-  cp ${tmp_download_dir}/playwright ${bin_install_path}
-  chmod +x ${binary_path}
+    echo "Extracting $browser revision $revision to $install_path/$browser-$revision"
+    tar -zxf $download_path --directory $install_path
+  done
 }
 
 # getArch discovers the architecture for this system.
 getArch() {
-  if [[ $ASDF_PLAYWRIGHT_OVERWRITE_ARCH != "" ]]; then
-    echo "$ASDF_PLAYWRIGHT_OVERWRITE_ARCH"
+  if [[ $ASDF_BROWSERS_OVERWRITE_ARCH != "" ]]; then
+    echo "$ASDF_BROWSERS_OVERWRITE_ARCH"
   else
     ARCH=$(uname -m)
     case $ARCH in
       armv5*) ARCH="armv5";;
       armv6*) ARCH="armv6";;
       armv7*) ARCH="arm";;
-      arm64) ARCH="arm64";;
+      arm64) ARCH="arm64";; # TODO Fix to proper when M1 packages are available
       aarch64) ARCH="arm64";;
       x86) ARCH="386";;
       x86_64) ARCH="amd64";;
@@ -57,10 +54,4 @@ getArch() {
   fi
 }
 
-get_download_url() {
-  local version="$1"
-  local platform="$2"
-  echo "https://playwright.azureedge.net/builds/chromium/1007/chromium-mac-arm64.zip"
-}
-
-install_playwright $ASDF_PLAYWRIGHT_VERSION $ASDF_INSTALL_PATH
+install_browsers $ASDF_PLAYWRIGHT_VERSION $ASDF_DATA_SHA256 $ASDF_INSTALL_PATH
