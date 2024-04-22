@@ -3,6 +3,11 @@
 set -e
 set -o pipefail
 
+#!/usr/bin/env bash
+
+set -e
+set -o pipefail
+
 install_browsers() {
   local install_type=$1
   local playwright_version=$2
@@ -18,32 +23,61 @@ install_browsers() {
   local arch="$(getArch)"
   local platform="$operating_system-$arch"
 
-  local platform="$operating_system-$arch"
-
   local browser_revs_file=$(mktemp)
   echo "Downloading browsers.json from ${browser_revs_url} to ${browser_revs_file}"
   curl --retry 10 --verbose --retry-delay 2 -Lo $browser_revs_file $browser_revs_url
 
   local browser_revs=$(jq -r '.browsers | to_entries | map("\(.key)=\(.value)") | join(" ")' $browser_revs_file)
 
- # Loop through each browser object in the JSON array
+  # Define the browsers you want to install
+  local browsers=("chromium")
+
+  # Loop through each browser object in the JSON array
   for browser_obj in $(jq -c '.browsers[]' $browser_revs_file); do
     # Extract name, revision, and browser version from the object
     local browser=$(jq -r '.name' <<< "$browser_obj")
     local revision=$(jq -r '.revision' <<< "$browser_obj")
-    local browser_version=$(jq -r '.browserVersion' <<< "$browser_obj")
 
-    # https://playwright.azureedge.net/builds/chromium/1007/chromium-mac-arm64.zip
-    local download_url="https://playwright.azureedge.net/builds/$browser/$revision/$browser-$platform.zip"
-    local download_path="$install_path/$browser-$revision.tar.gz"
+    # Check if the current browser is in the list of browsers to install
+    if [[ " ${browsers[@]} " =~ " ${browser} " ]]; then
+      local browser_version=$(jq -r '.browserVersion' <<< "$browser_obj")
 
-    echo "Downloading $browser revision $revision from $download_url to $download_path"
-    curl --retry 10 --verbose --retry-delay 2 -Lo $download_path $download_url
+      # https://playwright.azureedge.net/builds/chromium/1007/chromium-mac-arm64.zip
+      local download_url="https://playwright.azureedge.net/builds/$browser/$revision/$browser-$platform.zip"
+      local download_path="$install_path/$browser-$revision.tar.gz"
 
-    echo "Extracting $browser revision $revision to $install_path/$browser-$revision"
-    tar -zxf $download_path --directory $install_path
+      echo "Downloading $browser revision $revision from $download_url to $download_path"
+      curl --retry 10 --verbose --retry-delay 2 -Lo $download_path $download_url
+
+      echo "Extracting $browser revision $revision to $install_path/$browser-$revision"
+      tar -zxf $download_path --directory $install_path
+    fi
   done
 }
+
+# getArch discovers the architecture for this system.
+getArch() {
+  if [[ $ASDF_BROWSERS_OVERWRITE_ARCH != "" ]]; then
+    echo "$ASDF_BROWSERS_OVERWRITE_ARCH"
+  else
+    ARCH=$(uname -m)
+    case $ARCH in
+      armv5*) ARCH="armv5";;
+      armv6*) ARCH="armv6";;
+      armv7*) ARCH="arm";;
+      arm64) ARCH="arm64";; # TODO Fix to proper when M1 packages are available
+      aarch64) ARCH="arm64";;
+      x86) ARCH="386";;
+      x86_64) ARCH="amd64";;
+      i686) ARCH="386";;
+      i386) ARCH="386";;
+    esac
+    echo "$ARCH"
+  fi
+}
+
+install_browsers $ASDF_INSTALL_TYPE $ASDF_INSTALL_VERSION $ASDF_INSTALL_PATH
+
 
 # getArch discovers the architecture for this system.
 getArch() {
