@@ -25,7 +25,7 @@ install_browsers() {
 
   local browser_revs_file=$(mktemp)
   echo "Downloading browsers.json from ${browser_revs_url} to ${browser_revs_file}"
-  curl --retry 10 --retry-delay 2 -Lo $browser_revs_file $browser_revs_url
+  curl --retry 10 --verbose --retry-delay 2 -Lo $browser_revs_file $browser_revs_url
 
   local browser_revs=$(jq -r '.browsers | to_entries | map("\(.key)=\(.value)") | join(" ")' $browser_revs_file)
 
@@ -47,11 +47,10 @@ install_browsers() {
       local download_path="$install_path/$browser-$revision.tar.gz"
 
       echo "Downloading $browser revision $revision from $download_url to $download_path"
-      curl --retry 10 --retry-delay 2 -Lo $download_path $download_url
+      curl --retry 10 --verbose --retry-delay 2 -Lo $download_path $download_url
 
       echo "Extracting $browser revision $revision to $install_path/$browser-$revision"
       tar -zxf $download_path --directory $install_path
-
     fi
   done
 }
