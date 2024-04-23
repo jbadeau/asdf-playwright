@@ -52,8 +52,6 @@ install_browsers() {
       echo "Extracting $browser revision $revision to $install_path/$browser-$revision"
       tar -zxf $download_path --directory $install_path
 
-      chmod +x ${$install_path}
-
     fi
   done
 }
